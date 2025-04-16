@@ -16,6 +16,7 @@ import {
     ComposedChart,
     LabelList,
     ResponsiveContainer,
+    Customized,
     Text
 } from 'recharts';
 import { DownloadOutlined } from '@ant-design/icons';
@@ -54,7 +55,7 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
     const [colorModalVisible, setColorModalVisible] = useState<boolean>(false);
 
     const formatValue = (value: number, column: string) => {
-        if (typeof value === 'string') return value
+        if (typeof value === 'string' || typeof value === 'undefined') return value
 
         const format = columnFormats[column] || 'normal';
         switch (format) {
@@ -80,8 +81,7 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
             data: uniqueKeys.map(key => {
                 const v = data.filter(x => x[xKey] === key)
                 const groupedMap = groupByKeys.reduce((cur, x) => {
-                    const val = v.find(y => y[groupBy] === x)?.[displayColumn]
-                    cur[x] = val ? formatValue(val, displayColumn) : val
+                    cur[x] = formatValue(v.find(y => y[groupBy] === x)?.[displayColumn], displayColumn)
                     return cur
                 }, {})
                 return {
@@ -158,23 +158,32 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
         }
 
         const chartTitle = (
-            <Text
-                x="50%"
-                y={-1}
-                textAnchor="middle"
-                style={{ fontSize: '16px', fontWeight: 'bold' }}
-            >
-                adkfhjklajdf
-            </Text>
+            <Customized
+                component={(props: any) => {
+                    return <Text
+                        x={props.width / 2}
+                        y={10}
+                        verticalAnchor="middle"
+                        textAnchor="middle"
+                        style={{ fontSize: '16px', fontWeight: 'bold' }}
+                        fill='#000'
+                        children={title}
+                    >
+                    </Text>
+                }
+
+                }
+            />
         );
+        const margin = { top: 40, right: 30, left: 20, bottom: 5 }
 
         switch (chartType) {
             case 'bar':
                 return (
                     <ResponsiveContainer width="100%" height={400}>
-                        <BarChart 
+                        <BarChart
                             data={finalData}
-                            margin={{ top: 60, right: 30, left: 20, bottom: 5 }}
+                            margin={margin}
                         >
                             {chartTitle}
                             <CartesianGrid strokeDasharray="3 3" />
@@ -214,9 +223,9 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
             case 'line':
                 return (
                     <ResponsiveContainer width="100%" height={400}>
-                        <LineChart 
+                        <LineChart
                             data={data}
-                            margin={{ top: 40, right: 30, left: 20, bottom: 5 }}
+                            margin={margin}
                         >
                             {chartTitle}
                             <CartesianGrid strokeDasharray="3 3" />
@@ -290,9 +299,9 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
             case 'combined':
                 return (
                     <ResponsiveContainer width="100%" height={400}>
-                        <ComposedChart 
+                        <ComposedChart
                             data={data}
-                            margin={{ top: 40, right: 30, left: 20, bottom: 5 }}
+                            margin={margin}
                         >
                             {chartTitle}
                             <CartesianGrid strokeDasharray="3 3" />
@@ -447,7 +456,7 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
                     </Space>
                 )}
             </div>
-            <Card title={title} className="export-chart">
+            <Card className="export-chart">
                 <Space direction="vertical" style={{ width: '100%' }}>
 
 
