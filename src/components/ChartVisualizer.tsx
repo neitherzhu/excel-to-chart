@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Card, Radio, Space, Checkbox, Switch, Select as AntSelect, Modal } from 'antd';
+import { Card, Radio, Space, Checkbox, Switch, Select as AntSelect, Modal, ColorPicker, Button } from 'antd';
 import {
     BarChart,
     Bar,
@@ -16,7 +16,11 @@ import {
     ComposedChart,
     LabelList,
     ResponsiveContainer,
+    Text
 } from 'recharts';
+import { DownloadOutlined } from '@ant-design/icons';
+import { saveAs } from 'file-saver';
+import html2canvas from 'html2canvas';
 
 interface ChartVisualizerProps {
     title: string;
@@ -46,29 +50,8 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
         groupBy: '',
         displayColumn: ''
     });
-
-    const groupedData = useMemo(() => {
-        const { xKey, groupBy, displayColumn } = groupSettings
-        if (!xKey || !groupBy || !displayColumn) return { data: [], groupByKeys: [] };
-
-        // 获取所有唯一的分组值（如月份）
-        const uniqueKeys = [...new Set(data.map(item => item[xKey]))];
-        const groupByKeys = [...new Set(data.map(item => item[groupBy]))];
-        return {
-            groupByKeys,
-            data: uniqueKeys.map(key => {
-                const v = data.filter(x => x[xKey] === key)
-                const groupedMap = groupByKeys.reduce((cur, x) => {
-                    cur[x] = v.find(y => y[groupBy] === x)?.[displayColumn]
-                    return cur
-                }, {})
-                return {
-                    [xKey]: key,
-                    ...groupedMap
-                }
-            })
-        }
-    }, [data, groupSettings, selectedColumns]);
+    const [barColors, setBarColors] = useState<Record<string, string>>({});
+    const [colorModalVisible, setColorModalVisible] = useState<boolean>(false);
 
     const formatValue = (value: number, column: string) => {
         if (typeof value === 'string') return value
@@ -83,6 +66,31 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
                 return value.toFixed(2);
         }
     };
+
+    const groupedData = useMemo(() => {
+        const { xKey, groupBy, displayColumn } = groupSettings
+        if (!xKey || !groupBy || !displayColumn) return { data: [], groupByKeys: [] };
+
+        console.log(columnFormats, displayColumn)
+        // 获取所有唯一的分组值（如月份）
+        const uniqueKeys = [...new Set(data.map(item => item[xKey]))];
+        const groupByKeys = [...new Set(data.map(item => item[groupBy]))];
+        return {
+            groupByKeys,
+            data: uniqueKeys.map(key => {
+                const v = data.filter(x => x[xKey] === key)
+                const groupedMap = groupByKeys.reduce((cur, x) => {
+                    const val = v.find(y => y[groupBy] === x)?.[displayColumn]
+                    cur[x] = val ? formatValue(val, displayColumn) : val
+                    return cur
+                }, {})
+                return {
+                    [xKey]: key,
+                    ...groupedMap
+                }
+            })
+        }
+    }, [data, groupSettings, selectedColumns, columnFormats]);
 
     const formatYAxisValue = (value: number, axisId: string) => {
         const format = yAxisFormats[axisId] || 'normal';
@@ -110,6 +118,29 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
         }));
     };
 
+    const handleColorChange = (column: string, color: string) => {
+        setBarColors(prev => ({
+            ...prev,
+            [column]: color
+        }));
+    };
+
+    const handleExportChart = async () => {
+        const chartElement = document.querySelector('.export-chart');
+        if (!chartElement) return;
+
+        try {
+            const canvas = await html2canvas(chartElement as HTMLElement);
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    saveAs(blob, `${title}_${chartType}_chart.png`);
+                }
+            });
+        } catch (error) {
+            console.error('导出图表失败:', error);
+        }
+    };
+
     const renderChart = () => {
         if (selectedColumns.length === 0) return null;
 
@@ -126,12 +157,26 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
             xAxisKey = groupSettings.xKey
         }
 
+        const chartTitle = (
+            <Text
+                x="50%"
+                y={-1}
+                textAnchor="middle"
+                style={{ fontSize: '16px', fontWeight: 'bold' }}
+            >
+                adkfhjklajdf
+            </Text>
+        );
 
         switch (chartType) {
             case 'bar':
                 return (
                     <ResponsiveContainer width="100%" height={400}>
-                        <BarChart data={finalData}>
+                        <BarChart 
+                            data={finalData}
+                            margin={{ top: 60, right: 30, left: 20, bottom: 5 }}
+                        >
+                            {chartTitle}
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey={xAxisKey} />
                             <YAxis tickFormatter={(value) => formatYAxisValue(value, 'left')} />
@@ -141,7 +186,7 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
                                 <Bar
                                     key={column}
                                     dataKey={column}
-                                    fill={COLORS[index % COLORS.length]}
+                                    fill={barColors[column] || COLORS[index % COLORS.length]}
                                     radius={[4, 4, 0, 0]}
                                     barSize={30}
                                     maxBarSize={40}
@@ -150,7 +195,13 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
                                         <LabelList
                                             dataKey={column}
                                             position="top"
-                                            style={{ fontSize: '12px', fill: '#000' }}
+                                            offset={10}
+                                            style={{
+                                                fontSize: '12px',
+                                                fill: '#000',
+                                                textShadow: '0 0 2px rgba(255,255,255,0.5)',
+                                                fontWeight: 'bold'
+                                            }}
                                             formatter={(value: number) => formatValue(value, column)}
                                         />
                                     )}
@@ -163,7 +214,11 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
             case 'line':
                 return (
                     <ResponsiveContainer width="100%" height={400}>
-                        <LineChart data={data}>
+                        <LineChart 
+                            data={data}
+                            margin={{ top: 40, right: 30, left: 20, bottom: 5 }}
+                        >
+                            {chartTitle}
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey={xAxisKey} />
                             <YAxis tickFormatter={(value) => formatYAxisValue(value, 'left')} />
@@ -204,6 +259,7 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
                 return (
                     <ResponsiveContainer width="100%" height={400}>
                         <PieChart>
+                            {chartTitle}
                             <Pie
                                 data={data}
                                 dataKey={selectedColumns[1]}
@@ -234,7 +290,11 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
             case 'combined':
                 return (
                     <ResponsiveContainer width="100%" height={400}>
-                        <ComposedChart data={data}>
+                        <ComposedChart 
+                            data={data}
+                            margin={{ top: 40, right: 30, left: 20, bottom: 5 }}
+                        >
+                            {chartTitle}
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey={xAxisKey} />
                             <YAxis yAxisId="left" tickFormatter={(value) => formatYAxisValue(value, 'left')} />
@@ -256,12 +316,17 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
                                         <LabelList
                                             dataKey={column}
                                             position="top"
-                                            style={{ fontSize: '12px', fill: '#000' }}
+                                            offset={10}
+                                            style={{
+                                                fontSize: '12px',
+                                                fill: '#000',
+                                                textShadow: '0 0 2px rgba(255,255,255,0.5)',
+                                                fontWeight: 'bold'
+                                            }}
                                             formatter={(value: number) => formatValue(value, column)}
                                         />
                                     )}
                                 </Bar>
-
                             })}
                             {lineColumns.map((column, index) => {
                                 return (
@@ -337,6 +402,22 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
                     >
                         <AntSelect.Option value="group">分组设置</AntSelect.Option>
                     </AntSelect>
+                    {chartType === 'bar' && (
+                        <AntSelect
+                            value="color"
+                            onClick={() => setColorModalVisible(true)}
+                            style={{ width: 120 }}
+                        >
+                            <AntSelect.Option value="color">颜色设置</AntSelect.Option>
+                        </AntSelect>
+                    )}
+                    <Button
+                        type="primary"
+                        icon={<DownloadOutlined />}
+                        onClick={handleExportChart}
+                    >
+                        导出图表
+                    </Button>
                 </Space>
 
                 {chartType === 'combined' && (
@@ -366,7 +447,7 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
                     </Space>
                 )}
             </div>
-            <Card title={title} >
+            <Card title={title} className="export-chart">
                 <Space direction="vertical" style={{ width: '100%' }}>
 
 
@@ -486,6 +567,25 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
                                     ))}
                                 </AntSelect>
                             </div>
+                        </Space>
+                    </Modal>
+
+                    <Modal
+                        title="柱状图颜色设置"
+                        open={colorModalVisible}
+                        onCancel={() => setColorModalVisible(false)}
+                        footer={null}
+                    >
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                            {selectedColumns.slice(1).map((column: string) => (
+                                <div key={column} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ width: '100px' }}>{column}</span>
+                                    <ColorPicker
+                                        value={barColors[column] || COLORS[selectedColumns.slice(1).indexOf(column) % COLORS.length]}
+                                        onChange={(color) => handleColorChange(column, color.toHexString())}
+                                    />
+                                </div>
+                            ))}
                         </Space>
                     </Modal>
                 </Space>
