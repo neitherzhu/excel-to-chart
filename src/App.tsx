@@ -38,7 +38,6 @@ function App() {
           const worksheet = workbook.Sheets[sheetName]
           const jsonData = XLSX.utils.sheet_to_json<ExcelRow>(worksheet)
 
-          console.log(workbook)
           if (jsonData.length > 0) {
             const columns = Object.keys(jsonData[0]).map(key => ({
               title: key,
@@ -143,8 +142,9 @@ function App() {
                 rowSelection={rowSelection}
                 columns={getVisibleColumns()}
                 dataSource={currentSheet.data.dataSource}
-                scroll={{ x: true }}
+                scroll={{ x: true, y: 400 }}
                 rowKey="key"
+                pagination={{pageSize: 100}}
               />
               <ChartSelector
                 sheets={sheets.map(sheet => ({

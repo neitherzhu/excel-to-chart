@@ -55,6 +55,7 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
     const [colorModalVisible, setColorModalVisible] = useState<boolean>(false);
 
     const formatValue = (value: number, column: string) => {
+        console.log(value, column)
         if (typeof value === 'string' || typeof value === 'undefined') return value
 
         const format = columnFormats[column] || 'normal';
@@ -72,7 +73,6 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
         const { xKey, groupBy, displayColumn } = groupSettings
         if (!xKey || !groupBy || !displayColumn) return { data: [], groupByKeys: [] };
 
-        console.log(columnFormats, displayColumn)
         // 获取所有唯一的分组值（如月份）
         const uniqueKeys = [...new Set(data.map(item => item[xKey]))];
         const groupByKeys = [...new Set(data.map(item => item[groupBy]))];
@@ -276,21 +276,27 @@ const ChartVisualizer: React.FC<ChartVisualizerProps> = ({ title, data, selected
                                 cx="50%"
                                 cy="50%"
                                 outerRadius={150}
-                                label
+                                label={({ value }) => {
+                                    const formattedValue = formatValue(value, selectedColumns[1]);
+                                    return formattedValue;
+                                }}
                             >
                                 {(data).map((_, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                                 {showDataLabels && (
                                     <LabelList
-                                        dataKey="value"
+                                        dataKey={selectedColumns[1]}
                                         position="outside"
                                         style={{ fontSize: '12px', fill: '#000' }}
-                                        formatter={(value: number) => formatValue(value, data[0]?.name || '')}
+                                        formatter={(value: number) => formatValue(value, selectedColumns[1])}
                                     />
                                 )}
                             </Pie>
-                            <Tooltip formatter={(value: number) => formatValue(value, data[0]?.name || '')} />
+                            <Tooltip 
+                                formatter={(value: number) => formatValue(value, selectedColumns[1])}
+                                labelFormatter={(name) => name}
+                            />
                             <Legend />
                         </PieChart>
                     </ResponsiveContainer>
